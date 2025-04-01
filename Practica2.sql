@@ -259,3 +259,92 @@ delimiter ;
 
 
 call sp_libros_disponibles_por_genero('Drama');
+
+
+
+/*---------------- 7 ------------------
+Crea una función llamada fn_calcular_multa que reciba el ID de un préstamo y devuelva el importe de la multa según las siguientes reglas.
+0$ si no hay retraso.
+500$ por día para los primeros 10 días de retraso.
+1000$ por día para los siguientes días.
+*/
+delimiter //
+
+create procedure fn_calcular_multa(
+	in id_prestamo int,
+    out importe_multa int
+) 
+begin 
+	declare fecha_prevista DATE;
+    declare fecha_real DATE;
+    declare dias_retraso int default 0;
+   IF EXISTS (
+        SELECT 1 FROM prestamos WHERE id = id_prestamo
+    ) THEN
+    select fecha_devolucion_prevista, fecha_devolucion_real
+    into fecha_prevista, fecha_real
+    from prestamos
+    where id = id_prestamo;
+    
+    set dias_retraso = datediff(fecha_real, fecha_prevista);
+    
+    if dias_retraso <=0 then
+    set importe_multa = 0;
+    elseif importe_multa <= 10 then
+    set importe_multa = dias_retraso * 500;
+    else
+    set importe_multa = (10 * 500) + ((dias_retraso -10) - 1000);
+	end if;
+else
+	set importe_multa = 0;
+end if;
+end //
+
+delimiter //
+
+
+INSERT INTO prestamos (libro_id, nombre_usuario, fecha_prestamo, fecha_devolucion_prevista, fecha_devolucion_real)
+VALUES (1, 'user', '2024-06-01', '2024-06-10', '2024-06-15');
+
+call fn_calcular_multa(1, @multa);
+select @multa;
+
+
+/*---------------- 8 ------------------
+Crea un procedimiento llamado sp_registrar_libro que reciba título, 
+nombre del autor, género y año de publicación. Si el autor ya existe, utiliza su ID, 
+de lo contrario, crea un nuevo autor.*/
+
+DELIMITER //
+
+CREATE PROCEDURE sp_registrar_libro (
+    IN titulo_libro VARCHAR(100),
+    IN nombre_autor VARCHAR(50),
+    IN genero VARCHAR(50),
+    IN año_publicacion DATE
+)
+BEGIN
+    DECLARE id_autor INT;
+
+    -- Intentar obtener el ID del autor si ya existe
+    SELECT id INTO id_autor
+    FROM autores
+    WHERE nombre = nombre_autor
+    LIMIT 1;
+
+    -- Si no existe, insertarlo
+    IF id_autor IS NULL THEN
+        INSERT INTO autores (nombre)
+        VALUES (nombre_autor);
+        
+        SET id_autor = LAST_INSERT_ID();
+    END IF;
+
+    -- Insertar el libro
+    INSERT INTO libros (titulo, autor_id, genero, año_publicacion)
+    VALUES (titulo_libro, id_autor, genero, año_publicacion);
+END //
+
+DELIMITER ;
+
+call sp_registrar_libros()
