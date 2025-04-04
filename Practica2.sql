@@ -348,3 +348,49 @@ END //
 DELIMITER ;
 
 call sp_registrar_libros()
+
+
+/*---------------- 9 ------------------
+Crea una función llamada fn_promedio_libros_por_autor que calcule y devuelva la media de libros por autor en la biblioteca.*/
+DELIMITER $$
+
+CREATE FUNCTION fn_promedio_libros_por_autor()
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE promedio DECIMAL(10,2);
+    
+    SELECT COUNT(*) / COUNT(DISTINCT autor_id)
+    INTO promedio
+    FROM libros;
+    
+    RETURN promedio;
+END$$
+
+DELIMITER ;
+
+select fn_promedio_libros_por_autor();
+
+
+
+/*--------------------10 --------------------------
+Crea un procedimiento llamado sp_categorizar_libros que reciba un año como parámetro
+ y clasifique los libros según su fecha de publicación en: "Clásico" (anterior a 1900), 
+ "Moderno" (entre 1900 y el año parámetro) o "Contemporáneo" (posterior al año parámetro).*/
+
+delimiter //
+create procedure sp_categorizar_libros(
+	in año_libro int
+)
+	begin 
+		update libros
+        set categorias = 'Clasico'
+        where fecha_publicacion < 1900;
+        
+        update libros 
+        set categorias = ';
+        
+    return genero_literario;
+    end//
+delimiter//
+
