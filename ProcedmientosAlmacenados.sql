@@ -339,3 +339,119 @@ END //
 DELIMITER ;
 
 CALL sp_categorizar_libros(2000);
+
+
+/*11 Procedimiento sp_autores_por_nacionalidad Recibe una nacionalidad y devuelve autores, sus libros y la cantidad de préstamos por libro*/
+DELIMITER //
+
+CREATE PROCEDURE sp_autores_por_nacionalidad(
+    IN sp_nacionalidad VARCHAR(50)
+)
+BEGIN
+    -- Verifica si hay autores con esa nacionalidad
+    IF (SELECT COUNT(*) FROM autores WHERE nacionalidad = sp_nacionalidad) = 0 THEN
+        SELECT 'No se encontró ningún autor con esa nacionalidad' AS mensaje;
+    ELSE
+        -- Devuelve autores, sus libros y la cantidad de préstamos por libro
+        SELECT 
+            a.nombre AS autor,
+            l.titulo AS libro,
+            COUNT(p.id) AS cantidad_prestamos
+        FROM autores a
+        JOIN libros l ON a.id = l.autor_id
+        LEFT JOIN prestamos p ON l.id = p.libro_id
+        WHERE a.nacionalidad = sp_nacionalidad
+        GROUP BY a.nombre, l.titulo;
+    END IF;
+END //
+
+DELIMITER ;
+
+call sp_autores_por_nacionalidad('Colombiana');
+
+/* Función fn_calcular_popularidad Recibe el ID de un libro y devuelve su popularidad normalizada en una escala de 0 a 10. */
+DELIMITER //
+
+CREATE FUNCTION fn_calcular_popularidad(
+    f_id_libro INT
+)
+RETURNS DECIMAL(5,2)
+DETERMINISTIC
+BEGIN
+    DECLARE total_prestamos INT;
+    DECLARE max_prestamos INT;
+    DECLARE popularidad DECIMAL(5,2);
+
+    -- Obtener cantidad de préstamos del libro
+    SELECT COUNT(*) INTO total_prestamos
+    FROM prestamos
+    WHERE libro_id = f_id_libro;
+
+    -- Obtener la cantidad máxima de préstamos de todos los libros
+    SELECT MAX(cant) INTO max_prestamos
+    FROM (
+        SELECT COUNT(*) AS cant
+        FROM prestamos
+        GROUP BY libro_id
+    ) AS sub;
+
+    -- Evitar división por cero
+    IF max_prestamos = 0 THEN
+        SET popularidad = 0;
+    ELSE
+        SET popularidad = (total_prestamos / max_prestamos) * 10;
+    END IF;
+
+    RETURN popularidad;
+END //
+
+DELIMITER ;
+
+
+
+select fn_calcular_popularidad(3);
+
+/*13. Procedimiento sp_generar_reporte_prestamos_autor Recibe el ID de un autor y genera un reporte de préstamos de sus libros, con estadísticas y usuarios frecuentes. */
+DELIMITER //
+
+CREATE PROCEDURE sp_generar_reporte_prestamos_autor(
+    IN sp_id_autor INT
+)
+BEGIN
+    -- Verifica si existe el autor
+    IF (SELECT COUNT(*) FROM autores WHERE id = sp_id_autor) = 0 THEN
+        SELECT 'No se encontró un autor con ese ID' AS mensaje;
+    ELSE
+        -- Reporte principal: libros del autor y cantidad de préstamos
+        SELECT 
+            l.titulo AS libro,
+            COUNT(p.id) AS cantidad_prestamos
+        FROM libros l
+        LEFT JOIN prestamos p ON l.id = p.libro_id
+        WHERE l.autor_id = sp_id_autor
+        GROUP BY l.id;
+
+        -- Usuario más frecuente por libro del autor
+        SELECT 
+            l.titulo AS libro,
+            p.nombre_usuario,
+            COUNT(*) AS veces_prestado
+        FROM libros l
+        JOIN prestamos p ON l.id = p.libro_id
+        WHERE l.autor_id = sp_id_autor
+        GROUP BY l.id, p.nombre_usuario
+        HAVING COUNT(*) = (
+            SELECT MAX(sub.contador)
+            FROM (
+                SELECT COUNT(*) AS contador
+                FROM prestamos
+                WHERE libro_id = l.id
+                GROUP BY nombre_usuario
+            ) AS sub
+        );
+    END IF;
+END //
+
+DELIMITER ;
+
+CALL sp_generar_reporte_prestamos_autor(1);
