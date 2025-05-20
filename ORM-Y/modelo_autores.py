@@ -57,3 +57,6 @@ class Prestamo(Base):
 # Crear la base de datos
 engine = create_engine('sqlite:///biblioteca.db', echo=True)
 Base.metadata.create_all(engine)
+
+# Para ver que todo funciona bien
+print("Modelo de base de datos creado correctamente.")
